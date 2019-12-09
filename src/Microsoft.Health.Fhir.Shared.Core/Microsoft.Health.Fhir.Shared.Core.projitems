@@ -42,6 +42,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\CodingToTokenSearchValueTypeConverter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\ContactPointToTokenSearchValueTypeConverter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\DateToDateTimeSearchValueTypeConverter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\DeidentificationConverter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\FhirBooleanToTokenSearchValueTypeConverter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\FhirDateTimeToDateTimeSearchValueTypeConverter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Features\Search\Converters\FhirDecimalToNumberSearchValueTypeConverter.cs" />
