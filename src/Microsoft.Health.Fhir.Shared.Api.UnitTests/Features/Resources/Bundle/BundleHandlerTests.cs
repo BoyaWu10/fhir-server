@@ -14,12 +14,23 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Features.Authentication;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Microsoft.Health.Abstractions.Features.Transactions;
+using Microsoft.Health.Fhir.Api.Configs;
+using Microsoft.Health.Fhir.Api.Features.Audit;
 using Microsoft.Health.Fhir.Api.Features.Bundle;
+using Microsoft.Health.Fhir.Api.Features.Exceptions;
 using Microsoft.Health.Fhir.Api.Features.Resources.Bundle;
+using Microsoft.Health.Fhir.Api.Features.Routing;
+using Microsoft.Health.Fhir.Api.UnitTests.Features.Context;
 using Microsoft.Health.Fhir.Core.Extensions;
 using Microsoft.Health.Fhir.Core.Features.Context;
 using Microsoft.Health.Fhir.Core.Features.Persistence;
+using Microsoft.Health.Fhir.Core.Features.Resources;
+using Microsoft.Health.Fhir.Core.Features.Search;
+using Microsoft.Health.Fhir.Core.Features.Security.Authorization;
 using Microsoft.Health.Fhir.Core.Messages.Bundle;
+using Microsoft.Health.Fhir.Tests.Common;
 using NSubstitute;
 using NSubstitute.Core;
 using Xunit;
@@ -31,31 +42,32 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
     public class BundleHandlerTests
     {
         private readonly BundleHandler _bundleHandler;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IFhirRequestContextAccessor _fhirRequestContextAccessor;
-        private readonly FhirJsonParser _fhirJsonParser;
-        private readonly FhirJsonSerializer _fhirJsonSerializer;
-        private readonly BundleHttpContextAccessor _bundleHttpContextAccessor;
         private readonly IRouter _router;
-        private readonly ResourceIdProvider _resourceIdProvider;
+        private readonly BundleConfiguration _bundleConfiguration;
 
         public BundleHandlerTests()
         {
             _router = Substitute.For<IRouter>();
 
-            var fhirRequestContext = Substitute.For<IFhirRequestContext>();
-            fhirRequestContext.BaseUri.Returns(new Uri("https://localhost/"));
-            fhirRequestContext.CorrelationId.Returns(Guid.NewGuid().ToString());
+            var fhirRequestContext = new DefaultFhirRequestContext
+            {
+                BaseUri = new Uri("https://localhost/"),
+                CorrelationId = Guid.NewGuid().ToString(),
+            };
 
-            _fhirRequestContextAccessor = Substitute.For<IFhirRequestContextAccessor>();
-            _fhirRequestContextAccessor.FhirRequestContext.Returns(fhirRequestContext);
+            IFhirRequestContextAccessor fhirRequestContextAccessor = Substitute.For<IFhirRequestContextAccessor>();
+            fhirRequestContextAccessor.FhirRequestContext.Returns(fhirRequestContext);
 
-            _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+            IHttpContextAccessor httpContextAccessor = Substitute.For<IHttpContextAccessor>();
 
-            _fhirJsonSerializer = new FhirJsonSerializer();
-            _fhirJsonParser = new FhirJsonParser();
+            var fhirJsonSerializer = new FhirJsonSerializer();
+            var fhirJsonParser = new FhirJsonParser();
 
-            _bundleHttpContextAccessor = new BundleHttpContextAccessor();
+            ISearchService searchService = Substitute.For<ISearchService>();
+            var resourceReferenceResolver = new ResourceReferenceResolver(searchService, new QueryStringParser());
+            var transactionBundleValidator = new TransactionBundleValidator(resourceReferenceResolver);
+
+            var bundleHttpContextAccessor = new BundleHttpContextAccessor();
 
             IFeatureCollection featureCollection = CreateFeatureCollection();
             var httpContext = new DefaultHttpContext(featureCollection)
@@ -67,13 +79,32 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
                     PathBase = new PathString("/"),
                 },
             };
-            _httpContextAccessor.HttpContext.Returns(httpContext);
+            httpContextAccessor.HttpContext.Returns(httpContext);
 
             var transactionHandler = Substitute.For<ITransactionHandler>();
 
-            _resourceIdProvider = new ResourceIdProvider();
+            var resourceIdProvider = new ResourceIdProvider();
 
-            _bundleHandler = new BundleHandler(_httpContextAccessor, _fhirRequestContextAccessor, _fhirJsonSerializer, _fhirJsonParser, transactionHandler, _bundleHttpContextAccessor, _resourceIdProvider, NullLogger<BundleHandler>.Instance);
+            IAuditEventTypeMapping auditEventTypeMapping = Substitute.For<IAuditEventTypeMapping>();
+
+            _bundleConfiguration = new BundleConfiguration();
+            var bundleOptions = Substitute.For<IOptions<BundleConfiguration>>();
+            bundleOptions.Value.Returns(_bundleConfiguration);
+
+            _bundleHandler = new BundleHandler(
+                httpContextAccessor,
+                fhirRequestContextAccessor,
+                fhirJsonSerializer,
+                fhirJsonParser,
+                transactionHandler,
+                bundleHttpContextAccessor,
+                resourceIdProvider,
+                transactionBundleValidator,
+                resourceReferenceResolver,
+                auditEventTypeMapping,
+                bundleOptions,
+                DisabledFhirAuthorizationService.Instance,
+                NullLogger<BundleHandler>.Instance);
         }
 
         [Fact]
@@ -81,7 +112,7 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
         {
             var bundle = new Hl7.Fhir.Model.Bundle
             {
-                Type = Hl7.Fhir.Model.Bundle.BundleType.Batch,
+                Type = BundleType.Batch,
             };
 
             var bundleRequest = new BundleRequest(bundle.ToResourceElement());
@@ -89,7 +120,7 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
             BundleResponse bundleResponse = await _bundleHandler.Handle(bundleRequest, CancellationToken.None);
 
             var bundleResource = bundleResponse.Bundle.ToPoco<Hl7.Fhir.Model.Bundle>();
-            Assert.Equal(Hl7.Fhir.Model.Bundle.BundleType.BatchResponse, bundleResource.Type);
+            Assert.Equal(BundleType.BatchResponse, bundleResource.Type);
             Assert.Empty(bundleResource.Entry);
         }
 
@@ -98,14 +129,14 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
         {
             var bundle = new Hl7.Fhir.Model.Bundle
             {
-                Type = Hl7.Fhir.Model.Bundle.BundleType.Batch,
-                Entry = new List<Hl7.Fhir.Model.Bundle.EntryComponent>
+                Type = BundleType.Batch,
+                Entry = new List<EntryComponent>
                 {
-                    new Hl7.Fhir.Model.Bundle.EntryComponent
+                    new EntryComponent
                     {
-                        Request = new Hl7.Fhir.Model.Bundle.RequestComponent
+                        Request = new RequestComponent
                         {
-                            Method = Hl7.Fhir.Model.Bundle.HTTPVerb.GET,
+                            Method = HTTPVerb.GET,
                             Url = "/Patient",
                         },
                     },
@@ -120,10 +151,10 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
             BundleResponse bundleResponse = await _bundleHandler.Handle(bundleRequest, CancellationToken.None);
 
             var bundleResource = bundleResponse.Bundle.ToPoco<Hl7.Fhir.Model.Bundle>();
-            Assert.Equal(Hl7.Fhir.Model.Bundle.BundleType.BatchResponse, bundleResource.Type);
+            Assert.Equal(BundleType.BatchResponse, bundleResource.Type);
             Assert.Single(bundleResource.Entry);
 
-            Hl7.Fhir.Model.Bundle.EntryComponent entryComponent = bundleResource.Entry.First();
+            EntryComponent entryComponent = bundleResource.Entry.First();
             Assert.Equal("403", entryComponent.Response.Status);
 
             var operationOutcome = entryComponent.Response.Outcome as OperationOutcome;
@@ -142,10 +173,10 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
         {
             var bundle = new Hl7.Fhir.Model.Bundle
             {
-                Type = Hl7.Fhir.Model.Bundle.BundleType.Batch,
-                Entry = new List<Hl7.Fhir.Model.Bundle.EntryComponent>
+                Type = BundleType.Batch,
+                Entry = new List<EntryComponent>
                 {
-                    new Hl7.Fhir.Model.Bundle.EntryComponent
+                    new EntryComponent
                     {
                         Request = new RequestComponent
                         {
@@ -153,27 +184,23 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
                             Url = "/Patient",
                         },
                     },
-                    new Hl7.Fhir.Model.Bundle.EntryComponent
+                    new EntryComponent
                     {
                         Request = new RequestComponent
                         {
                             Method = HTTPVerb.POST,
-                            Url = "/Patient/789",
+                            Url = "/Patient",
                         },
-                        Resource = new Hl7.Fhir.Model.Patient
-                        {
-                        },
+                        Resource = new Patient(),
                     },
-                    new Hl7.Fhir.Model.Bundle.EntryComponent
+                    new EntryComponent
                     {
                         Request = new RequestComponent
                         {
                             Method = HTTPVerb.PUT,
-                            Url = "/Patient",
+                            Url = "/Patient/789",
                         },
-                        Resource = new Hl7.Fhir.Model.Patient
-                        {
-                        },
+                        Resource = new Patient(),
                     },
                 },
             };
@@ -185,11 +212,24 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Resources.Bundle
             BundleResponse bundleResponse = await _bundleHandler.Handle(bundleRequest, default);
 
             var bundleResource = bundleResponse.Bundle.ToPoco<Hl7.Fhir.Model.Bundle>();
-            Assert.Equal(Hl7.Fhir.Model.Bundle.BundleType.BatchResponse, bundleResource.Type);
+            Assert.Equal(BundleType.BatchResponse, bundleResource.Type);
             Assert.Equal(3, bundleResource.Entry.Count);
             Assert.Equal("403", bundleResource.Entry[0].Response.Status);
             Assert.Equal("404", bundleResource.Entry[1].Response.Status);
             Assert.Equal("200", bundleResource.Entry[2].Response.Status);
+        }
+
+        [Fact]
+        public async Task GivenAConfigurationEntryLimit_WhenExceeded_ThenBundleEntryLimitExceededExceptionShouldBeThrown()
+        {
+            _bundleConfiguration.EntryLimit = 1;
+            var requestBundle = Samples.GetDefaultBatch();
+            var bundleRequest = new BundleRequest(requestBundle);
+
+            var expectedMessage = "The number of entries in the bundle exceeded the configured limit of 1.";
+
+            var exception = await Assert.ThrowsAsync<BundleEntryLimitExceededException>(async () => await _bundleHandler.Handle(bundleRequest, CancellationToken.None));
+            Assert.Equal(exception.Message, expectedMessage);
         }
 
         private void RouteAsyncFunction(CallInfo callInfo)

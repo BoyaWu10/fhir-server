@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Hl7.Fhir.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Health.Fhir.Api.Features.Filters;
 using Microsoft.Health.Fhir.Api.Features.Routing;
 using Microsoft.Health.Fhir.Core.Features.Validation;
+using Microsoft.Health.Fhir.Core.Models;
 using Xunit;
 
 namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Filters
@@ -47,7 +49,8 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Filters
 
             var context = CreateContext(observation, observation.Id.ToUpper());
 
-            Assert.Throws<ResourceNotValidException>(() => filter.OnActionExecuting(context));
+            var exception = Assert.Throws<ResourceNotValidException>(() => filter.OnActionExecuting(context));
+            Assert.Equal("Observation.id", exception.Issues.First<OperationOutcomeIssue>().Location.First());
         }
 
         [Fact]
@@ -73,6 +76,58 @@ namespace Microsoft.Health.Fhir.Api.UnitTests.Features.Filters
             var observation = new Observation();
 
             var context = CreateContext(observation, Guid.NewGuid().ToString());
+
+            var exception = Assert.Throws<ResourceNotValidException>(() => filter.OnActionExecuting(context));
+            Assert.Equal("Observation.id", exception.Issues.First<OperationOutcomeIssue>().Location.First());
+        }
+
+        [Fact]
+        public void GivenAnObservationAction_WhenPuttingAParametersObservationObjectWithNonMatchingId_ThenAResourceNotValidExceptionShouldBeThrown()
+        {
+            var filter = new ValidateResourceIdFilterAttribute(true);
+
+            var observation = new Observation
+            {
+                Id = Guid.NewGuid().ToString(),
+            };
+
+            var parameters = new Parameters();
+            parameters.Add("resource", observation);
+            var context = CreateContext(parameters, Guid.NewGuid().ToString());
+
+            Assert.Throws<ResourceNotValidException>(() => filter.OnActionExecuting(context));
+        }
+
+        [Fact]
+        public void GivenAnObservationAction_WhenPuttingAParametersObservationObject_ThenTheResultIsSuccessful()
+        {
+            var filter = new ValidateResourceIdFilterAttribute(true);
+
+            var observation = new Observation
+            {
+                Id = Guid.NewGuid().ToString(),
+            };
+
+            var parameters = new Parameters();
+            parameters.Add("resource", observation);
+            var context = CreateContext(parameters, observation.Id);
+
+            filter.OnActionExecuting(context);
+        }
+
+        [Fact]
+        public void GivenAnObservationAction_WhenPuttingAParametersObject_AndParametersAreNotParsed_ThenTheResultIsSuccessful()
+        {
+            var filter = new ValidateResourceIdFilterAttribute();
+
+            var observation = new Observation
+            {
+                Id = Guid.NewGuid().ToString(),
+            };
+
+            var parameters = new Parameters();
+            parameters.Add("resource", observation);
+            var context = CreateContext(parameters, observation.Id);
 
             Assert.Throws<ResourceNotValidException>(() => filter.OnActionExecuting(context));
         }

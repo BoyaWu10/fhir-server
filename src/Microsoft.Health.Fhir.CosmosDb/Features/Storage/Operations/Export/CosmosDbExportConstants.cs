@@ -8,5 +8,6 @@ namespace Microsoft.Health.Fhir.CosmosDb.Features.Storage.Operations.Export
     public static class CosmosDbExportConstants
     {
         public const string ExportJobPartitionKey = "ExportJob";
+        public const string AnonymizeJobPartitionKey = "AnonymizeJob";
     }
 }

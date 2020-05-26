@@ -24,24 +24,30 @@ namespace Microsoft.Health.Fhir.Core.Features.Context
             string uriString,
             string baseUriString,
             string correlationId,
+            string collectionId,
             IDictionary<string, StringValues> requestHeaders,
-            IDictionary<string, StringValues> responseHeaders,
-            string resourceType)
+            IDictionary<string, StringValues> responseHeaders)
         {
             EnsureArg.IsNotNullOrWhiteSpace(method, nameof(method));
             EnsureArg.IsNotNullOrWhiteSpace(uriString, nameof(uriString));
             EnsureArg.IsNotNullOrWhiteSpace(baseUriString, nameof(baseUriString));
             EnsureArg.IsNotNullOrWhiteSpace(correlationId, nameof(correlationId));
             EnsureArg.IsNotNull(responseHeaders, nameof(responseHeaders));
-            EnsureArg.IsNotNull(requestHeaders, nameof(requestHeaders));
 
             Method = method;
             _uriString = uriString;
             _baseUriString = baseUriString;
             CorrelationId = correlationId;
+            CollectionId = collectionId;
             RequestHeaders = requestHeaders;
             ResponseHeaders = responseHeaders;
-            ResourceType = resourceType;
+        }
+
+        public FhirRequestContext(string sinkCollectionId)
+        {
+            SinkCollectionId = sinkCollectionId;
+            RequestHeaders = new Dictionary<string, StringValues>();
+            ResponseHeaders = new Dictionary<string, StringValues>();
         }
 
         public string Method { get; }
@@ -51,6 +57,10 @@ namespace Microsoft.Health.Fhir.Core.Features.Context
         public Uri Uri => _uri ?? (_uri = new Uri(_uriString));
 
         public string CorrelationId { get; }
+
+        public string CollectionId { get; set; }
+
+        public string SinkCollectionId { get; set; }
 
         public string RouteName { get; set; }
 

@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Transactions;
 using EnsureThat;
 using FluentValidation.Results;
 using Hl7.Fhir.Model;
@@ -15,8 +16,13 @@ using Microsoft.Health.Fhir.Core.Features.Validation;
 namespace Microsoft.Health.Fhir.Api.Features.Filters
 {
     [AttributeUsage(AttributeTargets.Method)]
-    internal class ValidateResourceIdFilterAttribute : ActionFilterAttribute
+    internal class ValidateResourceIdFilterAttribute : ParameterCompatibleFilter
     {
+        public ValidateResourceIdFilterAttribute(bool allowParametersResource = false)
+            : base(allowParametersResource)
+        {
+        }
+
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             EnsureArg.IsNotNull(context, nameof(context));
@@ -24,21 +30,8 @@ namespace Microsoft.Health.Fhir.Api.Features.Filters
             if (context.RouteData.Values.TryGetValue(KnownActionParameterNames.Id, out var actionId) &&
                 context.ActionArguments.TryGetValue(KnownActionParameterNames.Resource, out var parsedModel))
             {
-                if (!string.Equals((string)actionId, ((Resource)parsedModel).Id, StringComparison.Ordinal))
-                {
-                    throw new ResourceNotValidException(new List<ValidationFailure>
-                    {
-                        new ValidationFailure(nameof(Base.TypeName), Api.Resources.UrlResourceIdMismatch),
-                    });
-                }
-
-                if (string.IsNullOrWhiteSpace(((Resource)parsedModel).Id))
-                {
-                    throw new ResourceNotValidException(new List<ValidationFailure>
-                    {
-                        new ValidationFailure(nameof(Base.TypeName), Api.Resources.ResourceIdRequired),
-                    });
-                }
+                var resource = ParseResource((Resource)parsedModel);
+                ValidateId(resource, (string)actionId);
             }
             else
             {
@@ -46,6 +39,26 @@ namespace Microsoft.Health.Fhir.Api.Features.Filters
                 {
                     new ValidationFailure(nameof(Base.TypeName), Api.Resources.ResourceAndIdRequired),
                 });
+            }
+        }
+
+        private static void ValidateId(Resource resource, string expectedId)
+        {
+            var location = $"{resource.TypeName}.id";
+            if (string.IsNullOrWhiteSpace(resource.Id))
+            {
+                throw new ResourceNotValidException(new List<ValidationFailure>
+                    {
+                        new ValidationFailure(location, Api.Resources.ResourceIdRequired),
+                    });
+            }
+
+            if (!string.Equals(expectedId, resource.Id, StringComparison.Ordinal))
+            {
+                throw new ResourceNotValidException(new List<ValidationFailure>
+                    {
+                        new ValidationFailure(location, Api.Resources.UrlResourceIdMismatch),
+                    });
             }
         }
     }

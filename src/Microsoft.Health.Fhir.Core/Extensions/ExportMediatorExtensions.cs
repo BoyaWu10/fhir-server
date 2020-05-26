@@ -9,26 +9,39 @@ using System.Threading.Tasks;
 using EnsureThat;
 using MediatR;
 using Microsoft.Health.Fhir.Core.Messages.Export;
+using Microsoft.Health.Fhir.Core.Models;
 
 namespace Microsoft.Health.Fhir.Core.Extensions
 {
     public static class ExportMediatorExtensions
     {
-        public static async Task<CreateExportResponse> ExportAsync(
+        public static async Task<CreateExportResponse> AnonymizeAsync(
             this IMediator mediator,
             Uri requestUri,
-            string destinationType,
-            string destinationConnectionString,
+            string collectionId,
             CancellationToken cancellationToken)
         {
             EnsureArg.IsNotNull(mediator, nameof(mediator));
             EnsureArg.IsNotNull(requestUri, nameof(requestUri));
-            EnsureArg.IsNotNullOrWhiteSpace(destinationType, nameof(destinationType));
-            EnsureArg.IsNotNullOrWhiteSpace(destinationConnectionString, nameof(destinationConnectionString));
 
-            var request = new CreateExportRequest(requestUri, destinationType, destinationConnectionString);
+            var request = new CreateAnonymizeRequest(requestUri, collectionId);
 
-            var response = await mediator.Send(request, cancellationToken);
+            CreateExportResponse response = await mediator.Send(request, cancellationToken);
+            return response;
+        }
+
+        public static async Task<CreateExportResponse> ExportAsync(
+            this IMediator mediator,
+            Uri requestUri,
+            PartialDateTime since,
+            CancellationToken cancellationToken)
+        {
+            EnsureArg.IsNotNull(mediator, nameof(mediator));
+            EnsureArg.IsNotNull(requestUri, nameof(requestUri));
+
+            var request = new CreateExportRequest(requestUri, since: since);
+
+            CreateExportResponse response = await mediator.Send(request, cancellationToken);
             return response;
         }
 

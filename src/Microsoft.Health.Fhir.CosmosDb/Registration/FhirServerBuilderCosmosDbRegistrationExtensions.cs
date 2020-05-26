@@ -12,6 +12,9 @@ using Microsoft.Health.CosmosDb.Features.Storage;
 using Microsoft.Health.CosmosDb.Features.Storage.StoredProcedures;
 using Microsoft.Health.CosmosDb.Features.Storage.Versioning;
 using Microsoft.Health.Extensions.DependencyInjection;
+using Microsoft.Health.Fhir.Core.Features.Context;
+using Microsoft.Health.Fhir.Core.Features.Search.Registry;
+using Microsoft.Health.Fhir.Core.Models;
 using Microsoft.Health.Fhir.Core.Registration;
 using Microsoft.Health.Fhir.CosmosDb;
 using Microsoft.Health.Fhir.CosmosDb.Features.Health;
@@ -19,6 +22,7 @@ using Microsoft.Health.Fhir.CosmosDb.Features.Search;
 using Microsoft.Health.Fhir.CosmosDb.Features.Search.Queries;
 using Microsoft.Health.Fhir.CosmosDb.Features.Storage;
 using Microsoft.Health.Fhir.CosmosDb.Features.Storage.Operations;
+using Microsoft.Health.Fhir.CosmosDb.Features.Storage.Registry;
 using Microsoft.Health.Fhir.CosmosDb.Features.Storage.StoredProcedures;
 using Microsoft.Health.Fhir.CosmosDb.Features.Storage.Versioning;
 
@@ -49,7 +53,21 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.AddCosmosDb();
 
-            services.Configure<CosmosCollectionConfiguration>(Constants.CollectionConfigurationName, cosmosCollectionConfiguration => configuration.GetSection("FhirServer:CosmosDb").Bind(cosmosCollectionConfiguration));
+            services.AddTransient<IConfigureOptions<CosmosCollectionConfiguration>>(
+                sp => new ConfigureNamedOptions<CosmosCollectionConfiguration>(
+                    Constants.CollectionConfigurationName,
+                    cosmosCollectionConfiguration =>
+                    {
+                        configuration.GetSection("FhirServer:CosmosDb").Bind(cosmosCollectionConfiguration);
+                        if (string.IsNullOrWhiteSpace(cosmosCollectionConfiguration.CollectionId))
+                        {
+                            IModelInfoProvider modelInfoProvider = sp.GetRequiredService<IModelInfoProvider>();
+                            IFhirRequestContextAccessor requestContextAccessor = sp.GetRequiredService<IFhirRequestContextAccessor>();
+                            var baseCollectionId = modelInfoProvider.Version == FhirSpecification.Stu3 ? "fhir" : $"fhir{modelInfoProvider.Version}";
+                            cosmosCollectionConfiguration.CollectionId = requestContextAccessor?.FhirRequestContext?.CollectionId ?? baseCollectionId;
+                            cosmosCollectionConfiguration.SinkCollectionId = requestContextAccessor?.FhirRequestContext?.SinkCollectionId ?? baseCollectionId;
+                        }
+                    }));
 
             services.Add<CosmosFhirDataStore>()
                 .Scoped()
@@ -89,11 +107,15 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AsService<ICollectionInitializer>();
 
             services.Add<FhirCollectionSettingsUpdater>()
-                .Singleton()
+                .Transient()
                 .AsService<IFhirCollectionUpdater>();
 
             services.Add<FhirStoredProcedureInstaller>()
-                .Singleton()
+                .Transient()
+                .AsService<IFhirCollectionUpdater>();
+
+            services.Add<CosmosDbStatusRegistryInitializer>()
+                .Transient()
                 .AsService<IFhirCollectionUpdater>();
 
             services.TypesInSameAssemblyAs<IFhirStoredProcedure>()
@@ -119,6 +141,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 .Singleton()
                 .AsSelf()
                 .AsImplementedInterfaces();
+
+            services.Add<CosmosDbStatusRegistry>()
+                .Singleton()
+                .AsSelf()
+                .ReplaceService<ISearchParameterRegistry>();
 
             return fhirServerBuilder;
         }

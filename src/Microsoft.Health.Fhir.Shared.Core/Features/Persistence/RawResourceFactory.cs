@@ -7,6 +7,7 @@ using EnsureThat;
 using Hl7.Fhir.ElementModel;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
+using Microsoft.Health.Fhir.Core.Extensions;
 using Microsoft.Health.Fhir.Core.Models;
 
 namespace Microsoft.Health.Fhir.Core.Features.Persistence
@@ -22,6 +23,8 @@ namespace Microsoft.Health.Fhir.Core.Features.Persistence
         /// Initializes a new instance of the <see cref="RawResourceFactory"/> class.
         /// </summary>
         /// <param name="fhirJsonSerializer">The FhirJsonSerializer to use for serializing the resource.</param>
+        /// <param name="fhirJsonParser">The FhirJsonParser to use for parse the resource.</param>
+
         public RawResourceFactory(FhirJsonSerializer fhirJsonSerializer)
         {
             EnsureArg.IsNotNull(fhirJsonSerializer, nameof(fhirJsonSerializer));
@@ -34,7 +37,7 @@ namespace Microsoft.Health.Fhir.Core.Features.Persistence
         {
             EnsureArg.IsNotNull(resource, nameof(resource));
 
-            var poco = resource.Instance.ToPoco<Resource>();
+            var poco = resource.ToPoco<Resource>();
 
             var versionId = poco.Meta?.VersionId;
             var lastUpdated = poco.Meta?.LastUpdated;

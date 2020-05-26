@@ -6,18 +6,26 @@
 using System;
 using System.Collections.Generic;
 using EnsureThat;
+using Microsoft.Health.Core;
+using Microsoft.Health.Fhir.Core.Models;
 using Newtonsoft.Json;
 
 namespace Microsoft.Health.Fhir.Core.Features.Operations.Export.Models
 {
+    public enum ExportJobType
+    {
+        [JsonProperty("Export")]
+        Export,
+        [JsonProperty("Anonymize")]
+        Anonymize,
+    }
+
     /// <summary>
     /// Class to hold metadata for an individual export request.
     /// </summary>
     public class ExportJobRecord
     {
-        private const string SecretPrefix = "Export-Destination-";
-
-        public ExportJobRecord(Uri requestUri, string resourceType, string hash, IReadOnlyCollection<KeyValuePair<string, string>> requestorClaims = null)
+        public ExportJobRecord(Uri requestUri, string resourceType, string hash, IReadOnlyCollection<KeyValuePair<string, string>> requestorClaims = null, PartialDateTime since = null)
         {
             EnsureArg.IsNotNull(requestUri, nameof(requestUri));
             EnsureArg.IsNotNullOrWhiteSpace(hash, nameof(hash));
@@ -26,14 +34,34 @@ namespace Microsoft.Health.Fhir.Core.Features.Operations.Export.Models
             RequestUri = requestUri;
             ResourceType = resourceType;
             RequestorClaims = requestorClaims;
+            Since = since;
 
             // Default values
             SchemaVersion = 1;
             Id = Guid.NewGuid().ToString();
             Status = OperationStatus.Queued;
+            JobType = ExportJobType.Export;
 
             QueuedTime = Clock.UtcNow;
-            SecretName = SecretPrefix + Id;
+        }
+
+        public ExportJobRecord(Uri requestUri, string collectionId, string hash, IReadOnlyCollection<KeyValuePair<string, string>> requestorClaims = null)
+        {
+            EnsureArg.IsNotNull(requestUri, nameof(requestUri));
+            EnsureArg.IsNotNullOrWhiteSpace(hash, nameof(hash));
+
+            Hash = hash;
+            RequestUri = requestUri;
+            RequestorClaims = requestorClaims;
+            CollectionId = collectionId;
+
+            // Default values
+            SchemaVersion = 1;
+            Id = Guid.NewGuid().ToString();
+            Status = OperationStatus.Queued;
+            JobType = ExportJobType.Anonymize;
+
+            QueuedTime = Clock.UtcNow;
         }
 
         [JsonConstructor]
@@ -41,17 +69,20 @@ namespace Microsoft.Health.Fhir.Core.Features.Operations.Export.Models
         {
         }
 
+        [JsonProperty(JobRecordProperties.Type)]
+        public ExportJobType JobType { get; private set; }
+
         [JsonProperty(JobRecordProperties.RequestUri)]
         public Uri RequestUri { get; private set; }
+
+        [JsonProperty(JobRecordProperties.CollectionId)]
+        public string CollectionId { get; private set; }
 
         [JsonProperty(JobRecordProperties.ResourceType)]
         public string ResourceType { get; private set; }
 
         [JsonProperty(JobRecordProperties.RequestorClaims)]
         public IReadOnlyCollection<KeyValuePair<string, string>> RequestorClaims { get; private set; }
-
-        [JsonProperty(JobRecordProperties.SecretName)]
-        public string SecretName { get; private set; }
 
         [JsonProperty(JobRecordProperties.Id)]
         public string Id { get; private set; }
@@ -88,5 +119,8 @@ namespace Microsoft.Health.Fhir.Core.Features.Operations.Export.Models
 
         [JsonProperty(JobRecordProperties.FailureDetails)]
         public ExportJobFailureDetails FailureDetails { get; set; }
+
+        [JsonProperty(JobRecordProperties.Since)]
+        public PartialDateTime Since { get; private set; }
     }
 }

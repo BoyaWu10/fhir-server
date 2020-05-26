@@ -3,12 +3,12 @@
 // Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 // -------------------------------------------------------------------------------------------------
 
-using System;
 using EnsureThat;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Health.Extensions.DependencyInjection;
+using Microsoft.Health.Fhir.Core.Features.Anonymize;
 using Microsoft.Health.Fhir.Core.Features.Operations.Export;
-using Microsoft.Health.Fhir.Core.Features.Operations.Export.ExportDestinationClient;
 
 namespace Microsoft.Health.Fhir.Api.Modules
 {
@@ -21,15 +21,7 @@ namespace Microsoft.Health.Fhir.Api.Modules
         {
             EnsureArg.IsNotNull(services, nameof(services));
 
-            services.Add<ExportDestinationClientFactory>()
-                .Singleton()
-                .AsService<IExportDestinationClientFactory>();
-
-            services.Add<InMemoryExportDestinationClient>()
-                .Transient()
-                .AsSelf();
-
-            services.Add<Func<IExportDestinationClient>>(sp => () => sp.GetRequiredService<InMemoryExportDestinationClient>())
+            services.Add<AnonymizeJobTask>()
                 .Transient()
                 .AsSelf();
 
@@ -37,7 +29,17 @@ namespace Microsoft.Health.Fhir.Api.Modules
                 .Transient()
                 .AsSelf();
 
-            services.Add<IExportJobTask>(sp => sp.GetRequiredService<ExportJobTask>())
+            services.Add<ExportJobResolver>(sp => type =>
+                {
+                    if (type == Core.Features.Operations.Export.Models.ExportJobType.Export)
+                    {
+                        return sp.GetRequiredService<ExportJobTask>();
+                    }
+                    else
+                    {
+                        return sp.GetRequiredService<AnonymizeJobTask>();
+                    }
+                })
                 .Transient()
                 .AsSelf()
                 .AsFactory();

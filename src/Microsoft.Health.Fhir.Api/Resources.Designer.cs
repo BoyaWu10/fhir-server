@@ -19,7 +19,7 @@ namespace Microsoft.Health.Fhir.Api {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Resources {
@@ -70,11 +70,29 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The number of entries in the bundle exceeded the configured limit of {0}..
+        /// </summary>
+        public static string BundleEntryLimitExceeded {
+            get {
+                return ResourceManager.GetString("BundleEntryLimitExceeded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The route for &quot;{0}&quot; was not found..
         /// </summary>
         public static string BundleNotFound {
             get {
                 return ResourceManager.GetString("BundleNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Operation was not attempted because search criteria was not selective enough for query parameter &apos;{0}&apos;..
+        /// </summary>
+        public static string ConditionalOperationInBundleNotSelectiveEnough {
+            get {
+                return ResourceManager.GetString("ConditionalOperationInBundleNotSelectiveEnough", resourceCulture);
             }
         }
         
@@ -133,7 +151,7 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Requested operation does not support {0} interaction using {1}..
+        ///   Looks up a localized string similar to Requested operation &apos;{0}&apos; is not supported using {1}..
         /// </summary>
         public static string InvalidBundleEntry {
             get {
@@ -142,7 +160,7 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Bundles of type &apos;{0}&apos; are not supported..
+        ///   Looks up a localized string similar to Bundles of type &apos;{0}&apos; are not supported for this operation..
         /// </summary>
         public static string InvalidBundleType {
             get {
@@ -156,6 +174,24 @@ namespace Microsoft.Health.Fhir.Api {
         public static string InvalidCompoundCode {
             get {
                 return ResourceManager.GetString("InvalidCompoundCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Given conditional reference &apos;{0}&apos; does not resolve to a resource..
+        /// </summary>
+        public static string InvalidConditionalReference {
+            get {
+                return ResourceManager.GetString("InvalidConditionalReference", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resource type and query parameter must be present in a given request &apos;{0}&apos;..
+        /// </summary>
+        public static string InvalidConditionalReferenceParameters {
+            get {
+                return ResourceManager.GetString("InvalidConditionalReferenceParameters", resourceCulture);
             }
         }
         
@@ -214,6 +250,24 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Only one mode can be provided between a Parameters resource and the URL.
+        /// </summary>
+        public static string MultipleModesProvided {
+            get {
+                return ResourceManager.GetString("MultipleModesProvided", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only one profile can be provided between a Parameters resource and the URL.
+        /// </summary>
+        public static string MultipleProfilesProvided {
+            get {
+                return ResourceManager.GetString("MultipleProfilesProvided", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The requested route was not found..
         /// </summary>
         public static string NotFoundException {
@@ -232,7 +286,16 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The requested &quot;{0}&quot; operation is not implemented..
+        ///   Looks up a localized string similar to The requested &quot;{0}&quot; operation is not enabled.
+        /// </summary>
+        public static string OperationNotEnabled {
+            get {
+                return ResourceManager.GetString("OperationNotEnabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The requested &quot;{0}&quot; operation is not supported..
         /// </summary>
         public static string OperationNotImplemented {
             get {
@@ -246,6 +309,15 @@ namespace Microsoft.Health.Fhir.Api {
         public static string PageTitle {
             get {
                 return ResourceManager.GetString("PageTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error occurred when parsing model..
+        /// </summary>
+        public static string ParsingError {
+            get {
+                return ResourceManager.GetString("ParsingError", resourceCulture);
             }
         }
         
@@ -286,7 +358,16 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Bundle contains multiple resources with the same url value &apos;{0}&apos;..
+        ///   Looks up a localized string similar to Resource type &apos;{0}&apos; in the reference &apos;{1}&apos; is not supported..
+        /// </summary>
+        public static string ResourceNotSupported {
+            get {
+                return ResourceManager.GetString("ResourceNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Bundle contains multiple entries that refers to the same resource &apos;{0}&apos;..
         /// </summary>
         public static string ResourcesMustBeUnique {
             get {
@@ -367,29 +448,11 @@ namespace Microsoft.Health.Fhir.Api {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The requested &quot;{0}&quot; operation is not supported..
-        /// </summary>
-        public static string UnsupportedOperation {
-            get {
-                return ResourceManager.GetString("UnsupportedOperation", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to The &quot;{0}&quot; parameter is not supported..
         /// </summary>
         public static string UnsupportedParameter {
             get {
                 return ResourceManager.GetString("UnsupportedParameter", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The supplied value for &quot;{0}&quot; paramter is invalid..
-        /// </summary>
-        public static string UnsupportedParameterValue {
-            get {
-                return ResourceManager.GetString("UnsupportedParameterValue", resourceCulture);
             }
         }
         
@@ -408,6 +471,51 @@ namespace Microsoft.Health.Fhir.Api {
         public static string UrlResourceIdMismatch {
             get {
                 return ResourceManager.GetString("UrlResourceIdMismatch", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Validation against a profile is not supported..
+        /// </summary>
+        public static string ValidateWithProfileNotSupported {
+            get {
+                return ResourceManager.GetString("ValidateWithProfileNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources can not be validated for update or delete at the default endpoint. An id must be provided in the URL..
+        /// </summary>
+        public static string ValidationForUpdateAndDeleteNotSupported {
+            get {
+                return ResourceManager.GetString("ValidationForUpdateAndDeleteNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} is not a valid validation mode..
+        /// </summary>
+        public static string ValidationModeNotRecognized {
+            get {
+                return ResourceManager.GetString("ValidationModeNotRecognized", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} is not a supported validation mode..
+        /// </summary>
+        public static string ValidationModeNotSupported {
+            get {
+                return ResourceManager.GetString("ValidationModeNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to $validate is not a supported endpoint..
+        /// </summary>
+        public static string ValidationNotSupported {
+            get {
+                return ResourceManager.GetString("ValidationNotSupported", resourceCulture);
             }
         }
         

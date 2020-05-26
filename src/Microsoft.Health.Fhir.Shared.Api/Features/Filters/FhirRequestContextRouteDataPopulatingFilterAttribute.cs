@@ -38,6 +38,17 @@ namespace Microsoft.Health.Fhir.Api.Features.Filters
 
             fhirRequestContext.RouteName = context.ActionDescriptor?.AttributeRouteInfo?.Name;
 
+            // Set the resource type based on the route data
+            RouteData routeData = context.RouteData;
+
+            if (routeData?.Values != null)
+            {
+                if (routeData.Values.TryGetValue(KnownActionParameterNames.ResourceType, out object resourceType))
+                {
+                    fhirRequestContext.ResourceType = resourceType?.ToString();
+                }
+            }
+
             if (context.ActionDescriptor is ControllerActionDescriptor controllerActionDescriptor)
             {
                 fhirRequestContext.AuditEventType = _auditEventTypeMapping.GetAuditEventType(
@@ -67,16 +78,7 @@ namespace Microsoft.Health.Fhir.Api.Features.Filters
                 }
             }
 
-            // Set the resource type based on the route data
-            RouteData routeData = context.RouteData;
-
-            if (routeData?.Values != null)
-            {
-                if (routeData.Values.TryGetValue(KnownActionParameterNames.ResourceType, out object resourceType))
-                {
-                    fhirRequestContext.ResourceType = resourceType?.ToString();
-                }
-            }
+            base.OnActionExecuting(context);
         }
     }
 }

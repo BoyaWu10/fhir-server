@@ -4,18 +4,23 @@
 // -------------------------------------------------------------------------------------------------
 
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using EnsureThat;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Health.Api.Features.Headers;
 using Microsoft.Health.Extensions.DependencyInjection;
 using Microsoft.Health.Fhir.Api.Configs;
+using Microsoft.Health.Fhir.Api.Features.ApiNotifications;
 using Microsoft.Health.Fhir.Api.Features.Audit;
 using Microsoft.Health.Fhir.Api.Features.Context;
 using Microsoft.Health.Fhir.Api.Features.Exceptions;
-using Microsoft.Health.Fhir.Api.Features.Headers;
 using Microsoft.Health.Fhir.Api.Features.Operations.Export;
+using Microsoft.Health.Fhir.Api.Features.Routing;
 using Microsoft.Health.Fhir.Core.Features.Cors;
 using Microsoft.Health.Fhir.Core.Registration;
 
@@ -42,8 +47,11 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOptions();
             services.AddMvc(options =>
             {
+                options.EnableEndpointRouting = false;
                 options.RespectBrowserAcceptHeader = true;
-            });
+            })
+            .AddNewtonsoftJson()
+            .AddRazorRuntimeCompilation();
 
             var fhirServerConfiguration = new FhirServerConfiguration();
 
@@ -58,6 +66,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton(Options.Options.Create(fhirServerConfiguration.Operations));
             services.AddSingleton(Options.Options.Create(fhirServerConfiguration.Operations.Export));
             services.AddSingleton(Options.Options.Create(fhirServerConfiguration.Audit));
+            services.AddSingleton(Options.Options.Create(fhirServerConfiguration.Bundle));
 
             services.AddTransient<IStartupFilter, FhirServerStartupFilter>();
 
@@ -66,6 +75,19 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddFhirServerBase(fhirServerConfiguration);
 
             services.AddHttpClient();
+
+            var multipleRegisteredServices = services
+                .GroupBy(x => (x.ServiceType, x.ImplementationType, x.ImplementationInstance, x.ImplementationFactory))
+                .Where(x => x.Count() > 1)
+                .ToArray();
+
+            if (multipleRegisteredServices.Any())
+            {
+                foreach (var service in multipleRegisteredServices)
+                {
+                    Debug.WriteLine($"** IoC Config Warning: Service implementation '{service.Key.ImplementationType ?? service.Key.ImplementationInstance ?? service.Key.ImplementationFactory}' was registered multiple times.");
+                }
+            }
 
             return new FhirServerBuilder(services);
         }
@@ -105,7 +127,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 return app =>
                 {
-                    IHostingEnvironment env = app.ApplicationServices.GetRequiredService<IHostingEnvironment>();
+                    IWebHostEnvironment env = app.ApplicationServices.GetRequiredService<IWebHostEnvironment>();
 
                     // This middleware will add delegates to the OnStarting method of httpContext.Response for setting headers.
                     app.UseBaseHeaders();
@@ -127,20 +149,17 @@ namespace Microsoft.Extensions.DependencyInjection
                         app.UseBaseException();
 
                         // This middleware will capture any unhandled exceptions and attempt to return an operation outcome using the customError page
-                        app.UseExceptionHandler("/CustomError");
+                        app.UseExceptionHandler(KnownRoutes.CustomError);
 
                         // This middleware will capture any handled error with the status code between 400 and 599 that hasn't had a body or content-type set. (i.e. 404 on unknown routes)
-                        app.UseStatusCodePagesWithReExecute("/CustomError", "?statusCode={0}");
+                        app.UseStatusCodePagesWithReExecute(KnownRoutes.CustomError, "?statusCode={0}");
                     }
 
-                    // The audit module needs to come after the exception handler because we need to catch
-                    // the response before it gets converted to custom error.
+                    // The audit module needs to come after the exception handler because we need to catch the response before it gets converted to custom error.
                     app.UseAudit();
+                    app.UseApiNotifications();
 
-                    app.UseAuthentication();
-
-                    // Now that we've authenticated the user, update the context with any post-authentication info.
-                    app.UseFhirRequestContextAfterAuthentication();
+                    app.UseFhirRequestContextAuthentication();
 
                     next(app);
                 };
