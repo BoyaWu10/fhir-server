@@ -3,7 +3,7 @@ name: .NET Core
 on:
   push:
     branches:
-      - feature/duplicate-db-anonymize
+      - personal/boywu/duplicate-db-anonymize
 jobs:
   publish:
     runs-on: windows-latest
@@ -24,7 +24,7 @@ jobs:
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v1
       with:
-        app-name: 'perftest0522'
+        app-name: 'fhirexport2'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_76253104e63c421e84307a1d773bf516 }}
         package: ./artifacts
