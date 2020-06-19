@@ -38,6 +38,8 @@ namespace Microsoft.Health.Fhir.CosmosDb.Features.Storage
         private readonly RetryExceptionPolicyFactory _retryExceptionPolicyFactory;
         private readonly ILogger<CosmosFhirDataStore> _logger;
         private readonly IModelInfoProvider _modelInfoProvider;
+        private readonly CosmosDataStoreConfiguration _cosmosDataStoreConfiguration;
+        private readonly CosmosCollectionConfiguration _cosmosCollectionConfiguration;
 
         private readonly UpsertWithHistory _upsertWithHistoryProc;
         private readonly HardDelete _hardDelete;
@@ -60,7 +62,7 @@ namespace Microsoft.Health.Fhir.CosmosDb.Features.Storage
         public CosmosFhirDataStore(
             IScoped<IDocumentClient> documentClientScope,
             CosmosDataStoreConfiguration cosmosDataStoreConfiguration,
-            IOptionsMonitor<CosmosCollectionConfiguration> namedCosmosCollectionConfigurationAccessor,
+            IOptionsSnapshot<CosmosCollectionConfiguration> namedCosmosCollectionConfigurationAccessor,
             FhirCosmosDocumentQueryFactory cosmosDocumentQueryFactory,
             RetryExceptionPolicyFactory retryExceptionPolicyFactory,
             ILogger<CosmosFhirDataStore> logger,
@@ -77,17 +79,18 @@ namespace Microsoft.Health.Fhir.CosmosDb.Features.Storage
             EnsureArg.IsNotNull(coreFeatures, nameof(coreFeatures));
 
             _documentClientScope = documentClientScope;
+            _cosmosDataStoreConfiguration = cosmosDataStoreConfiguration;
             _cosmosDocumentQueryFactory = cosmosDocumentQueryFactory;
             _retryExceptionPolicyFactory = retryExceptionPolicyFactory;
             _logger = logger;
             _modelInfoProvider = modelInfoProvider;
             _coreFeatures = coreFeatures.Value;
 
-            CosmosCollectionConfiguration collectionConfiguration = namedCosmosCollectionConfigurationAccessor.Get(Constants.CollectionConfigurationName);
+            _cosmosCollectionConfiguration = namedCosmosCollectionConfigurationAccessor.Get(Constants.CollectionConfigurationName);
 
             DatabaseId = cosmosDataStoreConfiguration.DatabaseId;
-            CollectionId = collectionConfiguration.CollectionId;
-            CollectionUri = cosmosDataStoreConfiguration.GetRelativeCollectionUri(collectionConfiguration.CollectionId);
+            CollectionId = _cosmosCollectionConfiguration.CollectionId;
+            CollectionUri = cosmosDataStoreConfiguration.GetRelativeCollectionUri(_cosmosCollectionConfiguration.CollectionId);
 
             _upsertWithHistoryProc = new UpsertWithHistory();
             _hardDelete = new HardDelete();
@@ -108,6 +111,8 @@ namespace Microsoft.Health.Fhir.CosmosDb.Features.Storage
         {
             EnsureArg.IsNotNull(resource, nameof(resource));
 
+            var collectionId = _cosmosCollectionConfiguration.SinkCollectionId ?? _cosmosCollectionConfiguration.CollectionId;
+            Uri collectionUri = _cosmosDataStoreConfiguration.GetRelativeCollectionUri(collectionId);
             var cosmosWrapper = new FhirCosmosResourceWrapper(resource);
 
             try
@@ -117,7 +122,7 @@ namespace Microsoft.Health.Fhir.CosmosDb.Features.Storage
                 UpsertWithHistoryModel response = await _retryExceptionPolicyFactory.CreateRetryPolicy().ExecuteAsync(
                     async ct => await _upsertWithHistoryProc.Execute(
                         _documentClientScope.Value,
-                        CollectionUri,
+                        collectionUri,
                         cosmosWrapper,
                         weakETag?.VersionId,
                         allowCreate,
